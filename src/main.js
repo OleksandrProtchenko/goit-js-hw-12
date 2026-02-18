@@ -15,6 +15,7 @@ const form = document.querySelector('.form');
 
 form.addEventListener('submit', onSubmitForm);
 loadBtn.addEventListener('click', onLoadMoreClick);
+
 let resInput = '';
 let pageNum = 1;
 let totalPages = 0;
@@ -24,89 +25,118 @@ hideLoader();
 async function onSubmitForm(event) {
   event.preventDefault();
   pageNum = 1;
+
   hideLoadMoreButton();
   clearGallery();
 
-  resInput = form.elements['search-text'].value.trim();
+  resInput = new FormData(form).get('search-text').trim();
+
   try {
     if (resInput === '') {
-      iziToast.show({
-        message: 'Please enter a search query!',
-        backgroundColor: `#EF4040`,
-        messageColor: `#ffffff`,
-        position: `topRight`,
-        maxWidth: `432px`,
-      });
-      hideLoadMoreButton();
-      hideLoader();
-      clearGallery();
+      rejectUserInput();
       return;
     }
+
     showLoader();
+
     const { hits, totalHits } = await request(resInput, pageNum);
     totalPages = Math.ceil(totalHits / perPage);
 
     if (!hits || hits.length === 0) {
-      console.log(hits);
-      iziToast.show({
-        message:
-          ' Sorry, there are no images matching your search query. Please try again!',
-        backgroundColor: `#EF4040`,
-        messageColor: `#ffffff`,
-        position: `topRight`,
-        maxWidth: `432px`,
-      });
-      hideLoader();
+      rejectEmptyRequest();
       return;
     }
+
     createGallery(hits);
+
     if (pageNum < totalPages) {
       showLoadMoreButton();
     }
   } catch (error) {
     hideLoadMoreButton();
     console.log(error.message);
-    iziToast.show({
-      message: 'Please enter a search query!',
-      backgroundColor: `#EF4040`,
-      messageColor: `#ffffff`,
-      position: `topRight`,
-      maxWidth: `432px`,
-    });
+    displayToast(
+      'Sorry, there are no images matching your search query. Please try again!',
+      'error'
+    );
   } finally {
-    form.elements['search-text'].value = '';
+    form.reset();
     hideLoader();
   }
 }
 
 async function onLoadMoreClick() {
-  showLoader();
   try {
+    showLoader();
     pageNum += 1;
     const { hits } = await request(resInput, pageNum);
-    if (pageNum < totalPages) {
-      showLoadMoreButton();
-    } else if (pageNum === totalPages) {
-      iziToast.show({
-        message: 'Sorry!',
-        backgroundColor: `#EF4040`,
-        messageColor: `#ffffff`,
-        position: `topRight`,
-        maxWidth: `432px`,
-      });
+
+    if (pageNum === totalPages) {
+      displayToast(
+        "We're sorry, but you've reached the end of search results.",
+        'info'
+      );
       hideLoadMoreButton();
     }
 
     createGallery(hits);
-    getBoundingClientRect();
-    hideLoader();
+    scrollDown();
   } catch (error) {
     console.log(error);
+  } finally {
+    hideLoader();
   }
 }
-function getBoundingClientRect() {
+
+//? Helper functions
+
+function displayToast(message, toastType = 'error') {
+  iziToast.settings({
+    position: `topRight`,
+    maxWidth: `432px`,
+    messageColor: `#ffffff`,
+  });
+  switch (toastType) {
+    case 'error':
+      iziToast.error({
+        message: message,
+      });
+      break;
+    case 'info':
+      iziToast.info({
+        message: message,
+      });
+      break;
+    default:
+      break;
+  }
+}
+
+function rejectUserInput() {
+  displayToast('Please enter a search query!', 'error');
+  hideLoadMoreButton();
+  hideLoader();
+  clearGallery();
+}
+
+function rejectEmptyRequest() {
+  displayToast(
+    'Sorry, there are no images matching your search query. Please try again!',
+    'error'
+  );
+  hideLoader();
+}
+
+function scrollDown() {
+  const el = document.querySelector('.gallery');
+  const liEl = el.firstElementChild;
+
+  if (!liEl) return;
+
+  const { height } = liEl.getBoundingClientRect();
+
   window.scrollBy({
-    top: 1080,
+    top: height * 2,
     behavior: 'smooth',
   });
 }

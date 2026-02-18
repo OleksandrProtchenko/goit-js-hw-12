@@ -185,3 +185,7 @@ main .gallery-btn.shown {
     transform: rotate(360deg);
   }
 }
+
+.iziToast-icon .ico-info .revealIn {
+  color: #fff !important;
+}
